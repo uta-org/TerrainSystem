@@ -1,0 +1,480 @@
+// #define USE_MESH
+
+using System;
+using System.Collections;
+using System.Diagnostics;
+using System.IO;
+using System.Text;
+using System.Threading.Tasks;
+using uzSurfaceMapper.Core.Attrs.CodeAnalysis;
+using uzSurfaceMapper.Core.Components;
+using uzSurfaceMapper.Core.Func;
+using uzSurfaceMapper.Core.Generators;
+using uzSurfaceMapper.Extensions;
+using UnityEngine;
+using UnityEngine.Extensions;
+using Debug = UnityEngine.Debug;
+using Object = UnityEngine.Object;
+
+namespace uzSurfaceMapper.Utils.Terrains
+{
+    /// <summary>
+    ///     This is a procedural terrain generator that will create infinite sized terrains based
+    ///     on Simplex Noise. (A slightly faster than perlin implementation of coherent noise).
+    ///     It uses a target transform and generates terrain tiles around that transform, as
+    ///     it moves more terrain tiles are added and removed depending on the settings.
+    ///     @author Quick Fingers
+    /// </summary>
+    public class TerrainGenerator : MonoBehaviour
+    {
+        // (buffer * 2 + 1)^2 will be total number of planes in the scene at any one time
+        // @TODO: Add this variable to the inspector draw
+        [NonSerialized] [WIP] public int buffer = 1;
+
+        // noise detail scalar. Higher values make spikier noise, values lower than 0.1 give more rolling hills
+        // @TODO: Add this variable to the inspector draw
+        [NonSerialized] [WIP] public float detailScale = 1;
+
+        // as the noise always returns a value from -1 to 1 create a scalar
+        // @TODO: Add this variable to the inspector draw
+        [NonSerialized] [WIP] public float heightScale = 256;
+
+        // plane count is the amount of planes in a single row (buffer * 2 + 1)
+        private int planeCount;
+
+        // the planes scale (default unity plane is 10 units by 10 units, any more will make localScale of terrainPlane change)
+        private float planeSize;
+
+        // target to track;
+        public Transform target;
+
+        #region "Mesh Usage"
+
+#if USE_MESH
+
+        // the 10x10 vertex default plane in Unity
+        public Object terrainPlane;
+
+        public Material planeMaterial;
+
+        private GameObject planeObject;
+
+        private const int m_HighSize = 2049,
+            m_LowSize = 257;
+
+        private const int xHighSize = 512,
+            zHighSize = 512,
+            xLowSize = 64,
+            zLowSize = 64;
+
+        private static Mesh lowPolyMesh;
+        private static Mesh highPolyMesh;
+#endif
+
+        #endregion "Mesh Usage"
+
+        private const int m_HighSize = 2049,
+                          m_LowSize = 257;
+
+        private const int m_MapResolution = 513;
+
+        // array of tiles currently on screen
+        private Tile[,] terrainTiles;
+
+        private Terrain terrainObject;
+
+        // your current position
+        private int tileX;
+
+        private int tileZ;
+
+        public static float OriginalPlaneScale { get; set; } = 333f;
+
+        public static float DefaultVerticeCountPerSide => 11f;
+
+        private const bool generateHeights = true,
+                           debugWithBuilder = false,
+                           useConstantResolution = true;
+
+        // Use this for initialization
+        private void Start()
+        {
+            //Debug.Log($"Single plane size: {singlePlaneSize}"); = 333
+
+            // @TODO: Change width && height from TerrainData
+
+            planeCount = buffer * 2 + 1;
+            planeSize = OriginalPlaneScale / buffer;
+
+            tileX = Mathf.RoundToInt(target.position.x / planeSize);
+            tileZ = Mathf.RoundToInt(target.position.z / planeSize);
+
+            terrainObject = Resources.Load<Terrain>("Prefabs/Terrain");
+
+            // terrainObject.terrainData.heightmapScale = new Vector3(0, heightScale, 0);
+
+            terrainObject.gameObject.SetActive(false);
+
+            #region "Mesh Usage"
+
+#if USE_MESH
+            planeObject =
+                (GameObject)Instantiate(terrainPlane);
+
+            if (planeMaterial != null)
+                planeObject.GetComponent<Renderer>().material = planeMaterial;
+
+            planeObject.SetActive(false);
+
+            // Debug.Log($"SizeOf Vector3: {UnsafeUtility.SizeOf(typeof(Vector3))}\nSizeOf Vector2: {UnsafeUtility.SizeOf(typeof(Vector2))}\nSizeOf int: {sizeof(int)}");
+            // Debug.Log(F.SizeOf<Vector3>());
+
+            #region "Debug"
+
+            //int lowRes = xLowSize * zLowSize;
+            //int highRes = xHighSize * zHighSize;
+
+            long sizeOfLowTerrains = F.GetSizeOfTerrainInMemory(m_LowSize) * 8;
+            long sizeOfHighTerrains = F.GetSizeOfTerrainInMemory(m_HighSize);
+            long totalSize = sizeOfHighTerrains + sizeOfLowTerrains;
+
+            float mbConvert = 1024 * 1024;
+
+            Debug.Log($"LowMemSizeInMB: {sizeOfLowTerrains / mbConvert:F3} MBs ({xLowSize} * {zLowSize})" +
+                      Environment.NewLine +
+                      $"HighMemSizeInMB: {sizeOfHighTerrains / mbConvert:F3} MBs ({xHighSize} * {zHighSize})" +
+                      Environment.NewLine +
+                      $"TotalMemSizeInMB: {totalSize / mbConvert:F3} MBs");
+
+            var watch = Stopwatch.StartNew();
+
+            float lowScale = DefaultVerticeCountPerSide / (xLowSize + 1);
+            float highScale = DefaultVerticeCountPerSide / (xHighSize + 1);
+
+            //float lowScale = 1;
+            //float highScale = 1;
+
+            lowPolyMesh = GenerateMesh(xLowSize, zLowSize, lowScale, lowScale);
+            highPolyMesh = GenerateMesh(xHighSize, zHighSize, highScale, highScale);
+
+            watch.Stop();
+            Debug.Log($"Meshes generated in {watch.ElapsedMilliseconds} ms!");
+
+            #endregion "Debug"
+
+#endif
+
+            #endregion "Mesh Usage"
+
+            Generate();
+
+            // We flag that the player can move
+            CityGenerator.isCityGenerated = true;
+        }
+
+        #region "Mesh Usage"
+
+#if USE_MESH
+
+        public static Mesh GenerateMesh(int xSize, int zSize, float xScale, float zScale)
+        {
+            var mesh = new Mesh
+            {
+                vertices = GetVertices(xSize, zSize, xScale, zScale),
+                triangles = GetTriangles(xSize, zSize)
+            };
+
+            return mesh;
+        }
+
+        private static Vector3[] GetVertices(int xSize, int zSize, float xScale, float zScale)
+        {
+            var vertices = new Vector3[(xSize + 1) * (zSize + 1)];
+
+            for (int i = 0, z = 0; z <= zSize; ++z)
+                for (int x = 0; x <= xSize; ++x, ++i)
+                    vertices[i] = new Vector3(x * xScale, 0, z * zScale);
+
+            return vertices;
+        }
+
+        private static int[] GetTriangles(int xSize, int zSize)
+        {
+            int[] triangles = new int[xSize * zSize * 6];
+
+            for (int ti = 0, vi = 0, z = 0; z < zSize; ++z, ++vi)
+                for (int x = 0; x < xSize; ++x, ti += 6, ++vi)
+                {
+                    triangles[ti] = vi;
+                    triangles[ti + 3] = triangles[ti + 2] = vi + 1;
+                    triangles[ti + 4] = triangles[ti + 1] = vi + xSize + 1;
+                    triangles[ti + 5] = vi + xSize + 2;
+                }
+
+            return triangles;
+        }
+
+#endif
+
+        #endregion "Mesh Usage"
+
+        public void Generate(float detailScale, float heightScale)
+        {
+            this.detailScale = detailScale;
+            this.heightScale = heightScale;
+            Generate();
+        }
+
+        public void Generate()
+        {
+            if (terrainTiles != null)
+                foreach (var t in terrainTiles)
+                    Destroy(t.terrain.gameObject);
+
+            terrainTiles = new Tile[planeCount, planeCount];
+
+            for (var x = 0; x < planeCount; ++x)
+                for (var z = 0; z < planeCount; ++z)
+                    terrainTiles[x, z] = GenerateTile(tileX - buffer + x, tileZ - buffer + z, x == 1 && z == 1);
+        }
+
+        // Given a world tile x and tile z this generates a Tile object.
+        private Tile GenerateTile(int x, int z, bool isCenterTile)
+        {
+            var plane = terrainObject.CloneTerrain(new Vector3(x * planeSize, 0, z * planeSize), Quaternion.identity);
+            var data = plane.terrainData;
+
+            plane.gameObject.SetActive(true);
+
+            // Fix for tiling
+            var tiling = OriginalPlaneScale / 20f;
+
+            //plane.GetComponent<Renderer>().material.SetTextureScale("_MainTex", new Vector2(tiling, tiling));
+
+            //plane.transform.localScale = new Vector3(planeSize * 0.1f, 1, planeSize * 0.1f);
+            plane.transform.parent = transform;
+
+            //int _x = x % planeCount;
+            //int _z = z % planeCount;
+
+            //bool isCenterTile = _x == 0 && _z == 0;
+            //bool isMeshNull = highPolyMesh == null || lowPolyMesh == null;
+
+            //Debug.Log($"({x}, {z})");
+
+            // Get the planes vertices
+            //var mesh = isMeshNull
+            //    ? plane.GetComponent<MeshFilter>().mesh
+            //    : isCenterTile ? highPolyMesh : lowPolyMesh;
+
+            // ReSharper disable once ConditionIsAlwaysTrueOrFalse
+            int resolution = useConstantResolution
+                                    ? m_MapResolution
+                                    : (isCenterTile ? m_HighSize : m_LowSize);
+
+            // @TODO: This must be a clone (for height-maps)
+            //if (!isMeshNull)
+            //    plane.GetComponent<MeshFilter>().mesh = mesh;
+
+            data.heightmapResolution = resolution;
+            data.size = new Vector3(planeSize, heightScale, planeSize);
+
+            //var vertices = new float[data.heightmapWidth, data.heightmapHeight];
+
+            string fileName = $"debugTerrain_{x}-{z}.log";
+
+            // TODO: Depending on the real position of the texture map then just get if the current vertex position is water, then apply calculated texture for this biome
+
+            var debugSB = new StringBuilder();
+            //Debug.Log($"Height Scale: {heightScale}");
+
+            // alter vertex Y position depending on simplex noise)
+            // ReSharper disable once ConditionIsAlwaysTrueOrFalse
+            if (generateHeights)
+            {
+                var position = plane.transform.position;
+                var width = data.heightmapWidth;
+                var height = data.heightmapHeight;
+
+                AsyncHelper.RunAsync(() =>
+                    {
+                        var watch = Stopwatch.StartNew();
+                        var vertices = GetHeights(position, width, height);
+
+                        watch.Stop();
+                        Debug.Log($"Heightmaps generated in {watch.ElapsedMilliseconds} ms!");
+
+                        return vertices;
+                    },
+                    vertices => data.SetHeights(0, 0, vertices));
+            }
+
+            //Debug.Log(debugSB.ToString());
+            //Debug.Log(Environment.CurrentDirectory);
+
+            if (debugWithBuilder)
+                File.WriteAllText(Path.Combine(Environment.CurrentDirectory, fileName), debugSB.ToString());
+
+            //mesh.vertices = vertices;
+            //mesh.RecalculateBounds();
+            //mesh.RecalculateNormals();
+
+            //plane.AddComponent<MeshCollider>();
+
+            var c = City.GetChunk(x, z);
+
+            if (c?.listOfIndexBuildings != null)
+                StartCoroutine(CreateBuildings(c));
+
+            var tile = new Tile
+            {
+                terrain = plane,
+                tileX = x,
+                tileZ = z
+            };
+
+            return tile;
+        }
+
+        private float[,] GetHeights(Vector3 position, int width, int height)
+        {
+            var vertices = new float[width, height];
+
+            //for (int v = 0; v < vertices.Length; v++)
+            // ReSharper disable once RedundantCast
+            Parallel.For((int)0, width * height, index =>
+            {
+                int x = index % width;
+                int z = index / width;
+
+                float xPos = (float)x / width;
+                float zPos = (float)z / height;
+
+                // generate the height for current vertex
+                Vector3 vertexPosition = position + new Vector3(xPos, 0, zPos) * planeSize / 10f;
+
+                //float height = Mathf.PerlinNoise(vertexPosition.x * detailScale, vertexPosition.z * detailScale);
+                //vertices[_x, _z] = height;
+
+                // Debug.Log($"Height: {height:F3}");
+
+                // scale it with the heightScale field
+
+                Vector2 scaledVertexPos = SceneConversion.Instance.GetRealPositionForTexture(vertexPosition);
+
+                int sxPos = (int)scaledVertexPos.x;
+                int szPos = (int)scaledVertexPos.y;
+
+                vertices[x, z] = Core.Generators.TerrainGenerator.GetHeight(vertexPosition.x, vertexPosition.z, true);
+
+                //if (debugWithBuilder)
+                //    debugSB.AppendLine($"{vertexPosition.ToRoundedString()} --> {scaledVertexPos.ToRoundedString()}");
+
+                //vertices[v].y = GetHeight(scaledVertexPos) * heightScale;
+            });
+
+            return vertices;
+        }
+
+        //private static float GetHeight(Vector2 scaledVector)
+        //{
+        //    int x = (int)scaledVector.x;
+        //    int y = (int)scaledVector.y;
+
+        //    // Debug.Log($"Getting height from: {scaledVector}");
+
+        //    // TODO: Get color from map and follow impl from TerrainGenerator_Impl.cs:165
+        //    // Then get noise from this color
+
+        //    // Add some dev exceptions, now we will work with water
+
+        //    return 0;
+        //}
+
+        private static IEnumerator CreateBuildings(Chunk c)
+        {
+            Debug.Log(
+                $"{(c.r.position + Vector2.one * SceneConversion.Instance.SinglePlaneSize / 2).SimplifiedToString()} Generating {c.listOfIndexBuildings.Count} builds!");
+
+            foreach (var bIndex in c?.listOfIndexBuildings)
+                yield return CityGenerator.CreateBuild(bIndex);
+        }
+
+        // this function could possibly be optimized, but is a proof of concept.
+        // by recording the changeX and changeZ (as -1 or 1) we can
+        // remove the un needed cells and re generate the grid array with the
+        // correct tiles.
+        private void Cull(int changeX, int changeZ)
+        {
+            int i, j;
+            var newTiles = new Tile[planeCount];
+            var newTerrainTiles = new Tile[planeCount, planeCount];
+
+            // firstly remove the old tile gameObjects and null them from the array.
+            // populate a temporary array with the newly made tiles.
+            if (changeX != 0)
+                for (i = 0; i < planeCount; i++)
+                {
+                    int x = i % planeCount;
+                    int z = i / planeCount;
+
+                    Destroy(terrainTiles[buffer - buffer * changeX, i].terrain.gameObject);
+                    terrainTiles[buffer - buffer * changeX, i] = null;
+                    newTiles[i] = GenerateTile(tileX + buffer * changeX + changeX, tileZ - buffer + i, x == 1 && z == 1);
+                }
+
+            if (changeZ != 0)
+                for (i = 0; i < planeCount; i++)
+                {
+                    int x = i % planeCount;
+                    int z = i / planeCount;
+
+                    Destroy(terrainTiles[i, buffer - buffer * changeZ].terrain.gameObject);
+                    terrainTiles[i, buffer - buffer * changeZ] = null;
+                    newTiles[i] = GenerateTile(tileX - buffer + i, tileZ + buffer * changeZ + changeZ, x == 1 && z == 1);
+                }
+
+            // make a copy of the old terrainTiles to reference when creating the new tile map.
+            Array.Copy(terrainTiles, newTerrainTiles, planeCount * planeCount);
+
+            // go through the current tiles on screen (minus the ones we just deleted, and reapply there
+            // new position in the newTerrainTiles array.
+            for (i = 0; i < planeCount; i++)
+                for (j = 0; j < planeCount; j++)
+                {
+                    var t = terrainTiles[i, j];
+                    if (t != null)
+                        newTerrainTiles[-tileX - changeX + buffer + t.tileX, -tileZ - changeZ + buffer + t.tileZ] = t;
+                }
+
+            // add the newly created tiles to this new array.
+            for (i = 0; i < newTiles.Length; i++)
+            {
+                var t = newTiles[i];
+                newTerrainTiles[-tileX - changeX + buffer + t.tileX, -tileZ - changeZ + buffer + t.tileZ] = t;
+            }
+
+            // set the current map to the new array.
+            terrainTiles = newTerrainTiles;
+        }
+
+        // Update is called once per frame
+        private void Update()
+        {
+            var newTileX = Mathf.RoundToInt(target.position.x / planeSize);
+            var newTileZ = Mathf.RoundToInt(target.position.z / planeSize);
+
+            if (newTileX != tileX)
+            {
+                Cull(newTileX - tileX, 0);
+                tileX = newTileX;
+            }
+
+            if (newTileZ != tileZ)
+            {
+                Cull(0, newTileZ - tileZ);
+                tileZ = newTileZ;
+            }
+        }
+    }
+}
