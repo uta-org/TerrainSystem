@@ -5,7 +5,7 @@ using System.Text;
 using uzSurfaceMapper.Extensions;
 using UnityEngine;
 using UnityStandardAssets.Characters.FirstPerson;
-using uzSurfaceMapper.Core.Components;
+using uzSurfaceMapper.Model;
 using uzSurfaceMapper.Core.Generators;
 using uzSurfaceMapper.Utils.Generators;
 
@@ -102,9 +102,10 @@ namespace uzSurfaceMapper.Utils.Terrains
         {
             //if (!_heightMapSettings.generate) return;
 
-            ThreadedDataRequester.RequestData(
-                () => HeightMapGenerator.GenerateHeightMap(_meshSettings.NumVertsPerLine, _meshSettings.NumVertsPerLine,
-                    _heightMapSettings, _sampleCentre), OnHeightMapReceived);
+            // TODO
+            //ThreadedDataRequester.RequestData(
+            //    () => HeightMapGenerator.GenerateHeightMap(_meshSettings.NumVertsPerLine, _meshSettings.NumVertsPerLine,
+            //        _heightMapSettings, _sampleCentre), OnHeightMapReceived);
 
             // Generate buildings
             var position = Coord * _meshSettings.MeshWorldSize;

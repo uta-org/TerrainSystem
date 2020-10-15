@@ -1,4 +1,5 @@
-﻿using UnityEngine;
+﻿using System;
+using UnityEngine;
 using UnityEngine.Serialization;
 
 namespace uzSurfaceMapper.Utils.Terrains
@@ -35,18 +36,20 @@ namespace uzSurfaceMapper.Utils.Terrains
 
         public void DrawMapInEditor()
         {
-            textureData.ApplyToMaterial(terrainMaterial);
-            textureData.UpdateMeshHeights(terrainMaterial, heightMapSettings.MinHeight, heightMapSettings.MaxHeight);
-            var heightMap = HeightMapGenerator.GenerateHeightMap(meshSettings.NumVertsPerLine, meshSettings.NumVertsPerLine,
-                heightMapSettings, Vector2.zero);
+            throw new NotImplementedException();
 
-            if (drawMode == DrawMode.NoiseMap)
-                DrawTexture(TextureGenerator.TextureFromHeightMap(heightMap));
-            else if (drawMode == DrawMode.Mesh)
-                DrawMesh(MeshGenerator.GenerateTerrainMesh(heightMap.Values, meshSettings, editorPreviewLod));
-            else if (drawMode == DrawMode.FalloffMap)
-                DrawTexture(TextureGenerator.TextureFromHeightMap(
-                    new HeightMap(FalloffGenerator.GenerateFalloffMap(meshSettings.NumVertsPerLine), 0, 1)));
+            //textureData.ApplyToMaterial(terrainMaterial);
+            //textureData.UpdateMeshHeights(terrainMaterial, heightMapSettings.MinHeight, heightMapSettings.MaxHeight);
+            //var heightMap = HeightMapGenerator.GenerateHeightMap(meshSettings.NumVertsPerLine, meshSettings.NumVertsPerLine,
+            //    heightMapSettings, Vector2.zero);
+
+            //if (drawMode == DrawMode.NoiseMap)
+            //    DrawTexture(TextureGenerator.TextureFromHeightMap(heightMap));
+            //else if (drawMode == DrawMode.Mesh)
+            //    DrawMesh(MeshGenerator.GenerateTerrainMesh(heightMap.Values, meshSettings, editorPreviewLod));
+            //else if (drawMode == DrawMode.FalloffMap)
+            //    DrawTexture(TextureGenerator.TextureFromHeightMap(
+            //        new HeightMap(FalloffGenerator.GenerateFalloffMap(meshSettings.NumVertsPerLine), 0, 1)));
         }
 
         public void DrawTexture(Texture2D texture)

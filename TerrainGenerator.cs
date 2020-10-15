@@ -94,19 +94,19 @@ namespace uzSurfaceMapper.Utils.Terrains
             UpdateVisibleChunks();
 
             // ReSharper disable once ConditionIsAlwaysTrueOrFalse
-            if (VoronoiTextureWorker.UseGizmoColors)
-                VoronoiTextureWorker.UpdateColorArray();
+            //if (VoronoiTextureWorker.UseGizmoColors)
+            //    VoronoiTextureWorker.UpdateColorArray();
 
             yield return new WaitUntil(() => transform.childCount > 1);
 
             Transform transform1;
             Debug.Log($"Active chunks: {(transform1 = transform).GetActiveChildCount()} || Child Count: {transform1.childCount}");
 
-            foreach (var position in VoronoiTextureWorker.UnrelatedPositions)
-            {
-                var nearestTransform = transform1.FindClosestTarget(position);
-                Debug.Log($"Nearest object to '{position}' is '{nearestTransform.name}'!");
-            }
+            //foreach (var position in VoronoiTextureWorker.UnrelatedPositions)
+            //{
+            //    var nearestTransform = transform1.FindClosestTarget(position);
+            //    Debug.Log($"Nearest object to '{position}' is '{nearestTransform.name}'!");
+            //}
         }
 
         private void UpdateVisibleChunks()
