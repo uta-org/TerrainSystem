@@ -85,6 +85,19 @@ namespace uzSurfaceMapper.Utils.Terrains
             foreach (var worker in TextureWorkerBase.WorkersCollection)
             {
                 yield return new WaitUntil(() => worker.IsReady);
+
+                if (worker == null)
+                {
+                    Debug.LogWarning("Null worker!");
+                    continue;
+                }
+
+                if (worker.CurrentColors == null)
+                {
+                    Debug.LogWarning($"Null CurrentColors from worker ({worker.GetType().FullName})!");
+                    continue;
+                }
+
                 lock (worker.CurrentColors)
                     worker.SaveTexture(worker.CurrentColors, false);
             }
