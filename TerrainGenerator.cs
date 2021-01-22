@@ -13,6 +13,7 @@ using uzSurfaceMapper.Core.Workers;
 namespace uzSurfaceMapper.Utils.Terrains
 {
     using Data;
+    using uzSurfaceMapper.Extensions.Demo;
 
     public class TerrainGenerator : MonoSingleton<TerrainGenerator>
     {

@@ -7,6 +7,7 @@ using UnityEngine;
 using UnityStandardAssets.Characters.FirstPerson;
 using uzSurfaceMapper.Model;
 using uzSurfaceMapper.Core.Generators;
+using uzSurfaceMapper.Extensions.Demo;
 using uzSurfaceMapper.Utils.Generators;
 
 namespace uzSurfaceMapper.Utils.Terrains
