@@ -33,6 +33,8 @@ namespace uzSurfaceMapper.Utils.Terrains
 
         public MeshSettings meshSettings;
 
+        public bool saveTextureAtStart;
+
         private float _meshWorldSize;
 
         private readonly Dictionary<Vector2, TerrainChunk> _terrainChunkDictionary = new Dictionary<Vector2, TerrainChunk>();
@@ -99,8 +101,9 @@ namespace uzSurfaceMapper.Utils.Terrains
                     continue;
                 }
 
-                lock (worker.CurrentColors)
-                    worker.SaveTexture(worker.CurrentColors, false);
+                if (saveTextureAtStart)
+                    lock (worker.CurrentColors)
+                        worker.SaveTexture(worker.CurrentColors, false);
             }
 
             yield return new WaitUntil(() => MapGenerator.IsReady);
