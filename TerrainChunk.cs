@@ -86,7 +86,7 @@ namespace uzSurfaceMapper.Utils.Terrains
             if (string.IsNullOrEmpty(str)) return;
             var path = Path.Combine(Environment.CurrentDirectory, "chunks.txt");
             File.WriteAllText(path, str);
-            Debug.Log($"writed succesfully at '{path}'!");
+            Debug.Log($"Wrote successfully at '{path}'!");
             //Debug.Log(str);
             Builder.Clear();
         }
@@ -125,13 +125,13 @@ namespace uzSurfaceMapper.Utils.Terrains
                     Debug.LogException(ex);
                 }
 
-            if (c.roadPoints != null)
+            if (!c.RoadPoints.IsNullOrEmpty())
                 try
                 {
                     // ReSharper disable once UnusedVariable
 
-                    Builder.AppendLine($"starting to load chunk: {ToString()}");
-                    var roads = c.roadPoints.AsEnumerable().CreateRoad(Builder).ToList();
+                    Builder.AppendLine($"Starting to load chunk: {ToString()}");
+                    var roads = c.RoadPoints.CreateRoad(Builder).ToList();
                     RoadGeneratorUtil.Roads.Add(c, roads);
 
                     //var builder = new StringBuilder($"{road.name}\n{new string('=', 30)}\n\n");
@@ -230,7 +230,7 @@ namespace uzSurfaceMapper.Utils.Terrains
 
         public override string ToString()
         {
-            return $"({_bounds.min.x:F2}, {_bounds.min.y:F2}, {_bounds.max.x:F2}, {_bounds.max.y:F2})";
+            return $"TerrainChunk{{BoundsMinX={_bounds.min.x:F2},BoundsMinY={_bounds.min.y:F2},BoundsMaxX={_bounds.max.x:F2},BoundsMaxY={_bounds.max.y:F2}}}";
         }
     }
 }

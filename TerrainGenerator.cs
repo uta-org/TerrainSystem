@@ -46,6 +46,8 @@ namespace uzSurfaceMapper.Utils.Terrains
         private Vector2 _viewerPositionOld;
         private readonly List<TerrainChunk> _visibleTerrainChunks = new List<TerrainChunk>();
 
+        private bool _firstUpdate;
+
         public event Action OnTerrainUpdated = delegate { };
 
         private void Start()
@@ -84,6 +86,8 @@ namespace uzSurfaceMapper.Utils.Terrains
 
         private IEnumerator WaitUntilGeneratorIsReady()
         {
+            Debug.Log("Waiting for generator to end.");
+
             // First, execute registered workers
             foreach (var worker in TextureWorkerBase.WorkersCollection)
             {
@@ -105,6 +109,8 @@ namespace uzSurfaceMapper.Utils.Terrains
                     lock (worker.CurrentColors)
                         worker.SaveTexture(worker.CurrentColors, false);
             }
+
+            Debug.Log($"Finished workers. Waiting for MapGenerator: {MapGenerator.IsReadyLog}");
 
             yield return new WaitUntil(() => MapGenerator.IsReady);
 
@@ -164,6 +170,7 @@ namespace uzSurfaceMapper.Utils.Terrains
 
         private void OnTerrainChunkVisibilityChanged(TerrainChunk chunk, bool isVisible)
         {
+            Debug.Log($"Changed visibility from '{chunk}' to {(isVisible ? "visible" : "hidden")}");
             if (isVisible)
                 _visibleTerrainChunks.Add(chunk);
             else
