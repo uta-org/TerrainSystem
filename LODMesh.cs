@@ -26,7 +26,7 @@ namespace uzSurfaceMapper.Utils.Terrains
             Mesh = ((MeshData)meshDataObject).CreateMesh();
             HasMesh = true;
 
-            UpdateCallback();
+            UpdateCallback?.Invoke();
         }
 
         public void RequestMesh(HeightMap heightMap, MeshSettings meshSettings)

@@ -2,6 +2,11 @@
 //using UnityEngine;
 //using Debug = UnityEngine.Debug;
 
+using System;
+using UnityEngine;
+using uzSurfaceMapper.Utils.Terrains.Data;
+using uzSurfaceMapper.Utils.Terrains.Structs;
+
 namespace uzSurfaceMapper.Utils.Terrains
 {
     //using Structs;
@@ -11,6 +16,15 @@ namespace uzSurfaceMapper.Utils.Terrains
     {
         // TODO: Not needed on Demo.
         //public const bool UseDebug = false;
+
+        public static HeightMap GenerateHeightMap(int width, int height, HeightMapSettings settings,
+            Vector2 sampleCentre)
+        {
+            if (!settings.generate)
+                return new HeightMap(GetEmptyData(width, height), 0, 0);
+
+            throw new NotImplementedException();
+        }
 
         //public static HeightMap GenerateHeightMap(int width, int height, HeightMapSettings settings, Vector2 sampleCentre)
         //{
@@ -47,18 +61,18 @@ namespace uzSurfaceMapper.Utils.Terrains
         //    return new HeightMap(values, minValue, maxValue);
         //}
 
-        //private static float[,] GetEmptyData(int width, int height)
-        //{
-        //    var data = new float[width, height];
-        //    for (int i = 0; i < width; i++)
-        //    {
-        //        for (int j = 0; j < height; j++)
-        //        {
-        //            data[i, j] = 0;
-        //        }
-        //    }
+        private static float[,] GetEmptyData(int width, int height)
+        {
+            var data = new float[width, height];
+            for (int i = 0; i < width; i++)
+            {
+                for (int j = 0; j < height; j++)
+                {
+                    data[i, j] = 0;
+                }
+            }
 
-        //    return data;
-        //}
+            return data;
+        }
     }
 }

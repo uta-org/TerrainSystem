@@ -2,7 +2,6 @@
 using System.IO;
 using System.Linq;
 using System.Text;
-using uzSurfaceMapper.Extensions;
 using UnityEngine;
 using UnityStandardAssets.Characters.FirstPerson;
 using uzSurfaceMapper.Model;
@@ -104,9 +103,9 @@ namespace uzSurfaceMapper.Utils.Terrains
             //if (!_heightMapSettings.generate) return;
 
             // TODO
-            //ThreadedDataRequester.RequestData(
-            //    () => HeightMapGenerator.GenerateHeightMap(_meshSettings.NumVertsPerLine, _meshSettings.NumVertsPerLine,
-            //        _heightMapSettings, _sampleCentre), OnHeightMapReceived);
+            ThreadedDataRequester.RequestData(
+                () => HeightMapGenerator.GenerateHeightMap(_meshSettings.NumVertsPerLine, _meshSettings.NumVertsPerLine,
+                    _heightMapSettings, _sampleCentre), OnHeightMapReceived);
 
             // Generate buildings
             var position = Coord * _meshSettings.MeshWorldSize;
@@ -159,7 +158,14 @@ namespace uzSurfaceMapper.Utils.Terrains
 
         public void UpdateTerrainChunk()
         {
-            if (_heightMapReceived)
+            UpdateTerrainChunk(false);
+        }
+
+        public void UpdateTerrainChunk(bool force)
+        {
+            Debug.Log($"[HeightmapReceived={_heightMapReceived}] Updating terrain chunk.");
+
+            if (_heightMapReceived || force)
             {
                 var viewerDstFromNearestEdge = Mathf.Sqrt(_bounds.SqrDistance(ViewerPosition));
 
@@ -204,6 +210,8 @@ namespace uzSurfaceMapper.Utils.Terrains
             if (!_hasSetCollider)
             {
                 var sqrDstFromViewerToEdge = _bounds.SqrDistance(ViewerPosition);
+
+                //Debug.Log($"[{_colliderLodIndex}] Updating collision mesh for dst {sqrDstFromViewerToEdge} < {_detailLevels[_colliderLodIndex].SqrVisibleDstThreshold}");
 
                 if (sqrDstFromViewerToEdge < _detailLevels[_colliderLodIndex].SqrVisibleDstThreshold)
                     if (!_lodMeshes[_colliderLodIndex].HasRequestedMesh)

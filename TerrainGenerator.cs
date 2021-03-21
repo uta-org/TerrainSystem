@@ -114,6 +114,7 @@ namespace uzSurfaceMapper.Utils.Terrains
 
             yield return new WaitUntil(() => MapGenerator.IsReady);
 
+            Debug.Log("Updating visible chunks.");
             UpdateVisibleChunks();
 
             // ReSharper disable once ConditionIsAlwaysTrueOrFalse
@@ -124,6 +125,10 @@ namespace uzSurfaceMapper.Utils.Terrains
 
             Transform transform1;
             Debug.Log($"Active chunks: {(transform1 = transform).GetActiveChildCount()} || Child Count: {transform1.childCount}");
+
+            yield return new WaitUntil(() => _visibleTerrainChunks.Count > 0);
+
+            MapGenerator.Instance.UnfreezePlayer();
 
             //foreach (var position in VoronoiTextureWorker.UnrelatedPositions)
             //{
@@ -141,8 +146,12 @@ namespace uzSurfaceMapper.Utils.Terrains
                 _visibleTerrainChunks[i].UpdateTerrainChunk();
             }
 
+            Debug.Log($"Visible chunks: {alreadyUpdatedChunkCoords.Count}");
+
             var currentChunkCoordX = Mathf.RoundToInt(_viewerPosition.x / _meshWorldSize);
             var currentChunkCoordY = Mathf.RoundToInt(_viewerPosition.y / _meshWorldSize);
+
+            Debug.Log($"Iterating offset (x/z) from {-_chunksVisibleInViewDst} to {_chunksVisibleInViewDst} ({_chunksVisibleInViewDst * 4})");
 
             for (var yOffset = -_chunksVisibleInViewDst; yOffset <= _chunksVisibleInViewDst; yOffset++)
                 for (var xOffset = -_chunksVisibleInViewDst; xOffset <= _chunksVisibleInViewDst; xOffset++)
@@ -152,10 +161,13 @@ namespace uzSurfaceMapper.Utils.Terrains
                     {
                         if (_terrainChunkDictionary.ContainsKey(viewedChunkCoord))
                         {
+                            Debug.Log($"[{viewedChunkCoord.ToRoundedString()}] Updating already loaded chunk.");
                             _terrainChunkDictionary[viewedChunkCoord].UpdateTerrainChunk();
                         }
                         else
                         {
+                            //Debug.Log($"[{viewedChunkCoord}] Loading chunk.");
+
                             var newChunk = new TerrainChunk(viewedChunkCoord, heightMapSettings, meshSettings, detailLevels,
                                 colliderLodIndex, transform, mapMaterial);
                             _terrainChunkDictionary.Add(viewedChunkCoord, newChunk);
@@ -170,7 +182,7 @@ namespace uzSurfaceMapper.Utils.Terrains
 
         private void OnTerrainChunkVisibilityChanged(TerrainChunk chunk, bool isVisible)
         {
-            Debug.Log($"Changed visibility from '{chunk}' to {(isVisible ? "visible" : "hidden")}");
+            //Debug.Log($"Changed visibility from '{chunk}' to {(isVisible ? "visible" : "hidden")}");
             if (isVisible)
                 _visibleTerrainChunks.Add(chunk);
             else
