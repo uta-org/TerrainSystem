@@ -161,7 +161,7 @@ namespace uzSurfaceMapper.Utils.Terrains
                     {
                         if (_terrainChunkDictionary.ContainsKey(viewedChunkCoord))
                         {
-                            Debug.Log($"[{viewedChunkCoord.ToRoundedString()}] Updating already loaded chunk.");
+                            //Debug.Log($"[{viewedChunkCoord.ToRoundedString()}] Updating already loaded chunk.");
                             _terrainChunkDictionary[viewedChunkCoord].UpdateTerrainChunk();
                         }
                         else

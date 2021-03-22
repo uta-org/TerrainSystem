@@ -4,6 +4,7 @@ using System.Linq;
 using System.Text;
 using UnityEngine;
 using UnityStandardAssets.Characters.FirstPerson;
+using uzLib.Lite.ExternalCode.Extensions;
 using uzSurfaceMapper.Model;
 using uzSurfaceMapper.Core.Generators;
 using uzSurfaceMapper.Extensions.Demo;
@@ -111,7 +112,8 @@ namespace uzSurfaceMapper.Utils.Terrains
             var position = Coord * _meshSettings.MeshWorldSize;
             var conv = CityGenerator.SConv;
             var scaledVector = conv.GetScaledVector(position);
-            var c = City.GetChunk((int)scaledVector.x, (int)scaledVector.y, position.x, position.y, out var debugStr);
+            var c = City.GetChunk((int)scaledVector.x, (int)scaledVector.y, position.x, position.y, out var debugStr, out var neighborCount);
+            Builder.AppendLine(debugStr);
             //Debug.Log($"[{_meshObject.transform.name}] {position} -> {scaledVector}\nGenerating {c.listOfIndexBuildings.Count} builds!\n\n[{c}]\n{debugStr}"); // DON'T DELETE
 
             if (c.listOfIndexBuildings != null)
@@ -124,13 +126,17 @@ namespace uzSurfaceMapper.Utils.Terrains
                     Debug.LogException(ex);
                 }
 
-            if (!c.RoadPoints.IsNullOrEmpty())
+            // test
+            // if (neighborCount.GetValue(0) < 0)
+            //Debug.Log(neighborCount);
+
+            if (!F.IsNullOrEmpty(c.RoadNodes))
                 try
                 {
                     // ReSharper disable once UnusedVariable
 
                     Builder.AppendLine($"Starting to load chunk: {ToString()}");
-                    var roads = c.RoadPoints.CreateRoad(Builder).ToList();
+                    var roads = c.RoadNodes.CreateRoad(Builder).ToList();
                     RoadGeneratorUtil.Roads.Add(c, roads);
 
                     //var builder = new StringBuilder($"{road.name}\n{new string('=', 30)}\n\n");
@@ -144,6 +150,10 @@ namespace uzSurfaceMapper.Utils.Terrains
                 {
                     Debug.LogException(ex);
                 }
+            //else
+            //{
+            //    Debug.LogWarning("Roads are null.");
+            //}
 
             //MonoSingleton<MapGenerator>.Instance.StartCoroutine(BuildingGeneratorUtil.CreateBuildings(c));
         }
@@ -163,7 +173,7 @@ namespace uzSurfaceMapper.Utils.Terrains
 
         public void UpdateTerrainChunk(bool force)
         {
-            Debug.Log($"[HeightmapReceived={_heightMapReceived}] Updating terrain chunk.");
+            // Debug.Log($"[HeightmapReceived={_heightMapReceived}] Updating terrain chunk.");
 
             if (_heightMapReceived || force)
             {
